@@ -1,238 +1,129 @@
 import { useEffect, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
+import { supabase } from "../services/supabase"
 
-type Bus = {
-  id: number
-  busName: string
-  busNumber: string
-  routeNumber: string
-  fromLocation: string
-  toLocation: string
-  busType: string
-  totalSeats: string
-}
-
-const bookedSeats = ["A1", "A2", "B3", "C4"]
-
-const generateSeats = (totalSeats: number) => {
-  const seats: string[][] = []
-  const seatsPerRow = 4
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-  let seatCount = 1
-
-  for (let rowIndex = 0; seatCount <= totalSeats; rowIndex++) {
-    const rowLetter = alphabet[rowIndex]
-    const rowSeats: string[] = []
-
-    for (let seatNumber = 1; seatNumber <= seatsPerRow; seatNumber++) {
-      if (seatCount <= totalSeats) {
-        rowSeats.push(`${rowLetter}${seatNumber}`)
-        seatCount++
-      }
-    }
-
-    seats.push(rowSeats)
-  }
-
-  return seats
+type Seat = {
+  id: string
+  seat_number: number
+  is_booked: boolean
 }
 
 const SeatSelection = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  const params = new URLSearchParams(location.search)
 
-  const busId = params.get("busId")
-  const from = params.get("from")
-  const to = params.get("to")
-  const date = params.get("date")
+  const bus = location.state?.bus
 
-  const [selectedSeats, setSelectedSeats] = useState<string[]>([])
-  const [selectedBus, setSelectedBus] = useState<Bus | null>(null)
+  const [seats, setSeats] = useState<Seat[]>([])
+  const [selectedSeats, setSelectedSeats] = useState<number[]>([])
+  const [loading, setLoading] = useState(true)
 
+  // ✅ LOAD SEATS FROM DATABASE
   useEffect(() => {
-    const savedBuses = localStorage.getItem("buses")
+    if (!bus) return
 
-    if (savedBuses && busId) {
-      const buses: Bus[] = JSON.parse(savedBuses)
-      const bus = buses.find((item) => item.id === Number(busId))
+    loadSeats()
+  }, [bus])
 
-      if (bus) {
-        setSelectedBus(bus)
-      }
+  const loadSeats = async () => {
+    setLoading(true)
+
+    const { data, error } = await supabase
+      .from("seats")
+      .select("*")
+      .eq("bus_id", bus.id)
+
+    if (error) {
+      console.error(error.message)
+      alert("Failed to load seats")
+      setLoading(false)
+      return
     }
-  }, [busId])
 
-  const totalSeats = selectedBus ? Number(selectedBus.totalSeats) : 32
-  const seats = generateSeats(totalSeats)
+    setSeats(data || [])
+    setLoading(false)
+  }
 
-  const handleSeatClick = (seat: string) => {
-    if (bookedSeats.includes(seat)) return
+  // ✅ SELECT / UNSELECT SEAT
+  const toggleSeat = (seatNumber: number, isBooked: boolean) => {
+    if (isBooked) return // block booked seats
 
-    if (selectedSeats.includes(seat)) {
-      setSelectedSeats(selectedSeats.filter((s) => s !== seat))
+    if (selectedSeats.includes(seatNumber)) {
+      setSelectedSeats(selectedSeats.filter((s) => s !== seatNumber))
     } else {
-      setSelectedSeats([...selectedSeats, seat])
+      setSelectedSeats([...selectedSeats, seatNumber])
     }
   }
 
-  const getSeatClass = (seat: string) => {
-    if (bookedSeats.includes(seat)) {
-      return "bg-red-500 cursor-not-allowed opacity-80"
-    }
-
-    if (selectedSeats.includes(seat)) {
-      return "bg-blue-600 hover:bg-blue-700"
-    }
-
-    return "bg-green-500 hover:bg-green-600"
-  }
-
+  // ✅ GO TO PASSENGER PAGE
   const handleContinue = () => {
-    navigate(
-      `/passenger?seats=${selectedSeats.join(",")}&from=${from}&to=${to}&date=${date}&busId=${busId}`
-    )
+    if (selectedSeats.length === 0) {
+      alert("Select at least one seat")
+      return
+    }
+
+    navigate("/passenger", {
+      state: {
+        bus,
+        selectedSeats,
+      },
+    })
   }
+
+  if (loading) return <p className="p-6">Loading seats...</p>
 
   return (
-    <main className="px-6 py-10 max-w-6xl mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <section className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">
-            Select Your Seats
-          </h2>
+    <main className="max-w-5xl mx-auto px-6 py-10">
+      <h2 className="text-2xl font-bold mb-6">
+        Select Seats - {bus?.bus_name}
+      </h2>
 
-          <p className="text-slate-600 mb-2">
-            {from} → {to} | {date}
-          </p>
+      {/* 🪑 SEAT GRID */}
+      <div className="grid grid-cols-5 gap-4 mb-8">
+        {seats.map((seat) => {
+          const isSelected = selectedSeats.includes(seat.seat_number)
 
-          {selectedBus && (
-            <p className="text-slate-500 mb-6">
-              {selectedBus.busName} | Bus No: {selectedBus.busNumber} | Route No:{" "}
-              {selectedBus.routeNumber}
-            </p>
-          )}
-
-          <div className="flex gap-5 text-sm mb-8">
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded bg-green-500"></span>
-              Available
-            </span>
-
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded bg-blue-600"></span>
-              Selected
-            </span>
-
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded bg-red-500"></span>
-              Booked
-            </span>
-          </div>
-
-          <div className="bg-slate-100 rounded-2xl p-6 max-w-md mx-auto">
-            <div className="text-center bg-slate-800 text-white rounded-xl py-2 mb-6">
-              Driver
-            </div>
-
-            {seats.map((row, rowIndex) => (
-              <div
-                key={rowIndex}
-                className="flex justify-center items-center mb-3"
-              >
-                <div className="flex gap-3">
-                  {row.slice(0, 2).map((seat) => (
-                    <button
-                      key={seat}
-                      onClick={() => handleSeatClick(seat)}
-                      disabled={bookedSeats.includes(seat)}
-                      className={`w-12 h-12 rounded-xl text-white font-semibold transition ${getSeatClass(
-                        seat
-                      )}`}
-                    >
-                      {seat}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="w-10"></div>
-
-                <div className="flex gap-3">
-                  {row.slice(2).map((seat) => (
-                    <button
-                      key={seat}
-                      onClick={() => handleSeatClick(seat)}
-                      disabled={bookedSeats.includes(seat)}
-                      className={`w-12 h-12 rounded-xl text-white font-semibold transition ${getSeatClass(
-                        seat
-                      )}`}
-                    >
-                      {seat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <aside className="bg-white rounded-2xl shadow-lg p-6 h-fit">
-          <h3 className="text-xl font-bold text-slate-900 mb-4">
-            Booking Summary
-          </h3>
-
-          <div className="space-y-3 text-slate-700">
-            <p>
-              <span className="font-semibold">Bus ID:</span> {busId}
-            </p>
-
-            {selectedBus && (
-              <p>
-                <span className="font-semibold">Bus:</span>{" "}
-                {selectedBus.busName}
-              </p>
-            )}
-
-            <p>
-              <span className="font-semibold">Route:</span> {from} → {to}
-            </p>
-
-            <p>
-              <span className="font-semibold">Date:</span> {date}
-            </p>
-
-            <p>
-              <span className="font-semibold">Total Bus Seats:</span>{" "}
-              {totalSeats}
-            </p>
-
-            <p>
-              <span className="font-semibold">Selected Seats:</span>{" "}
-              {selectedSeats.length > 0
-                ? selectedSeats.join(", ")
-                : "No seats selected"}
-            </p>
-
-            <p>
-              <span className="font-semibold">Total Selected:</span>{" "}
-              {selectedSeats.length}
-            </p>
-          </div>
-
-          <button
-            disabled={selectedSeats.length === 0}
-            onClick={handleContinue}
-            className={`w-full mt-6 py-3 rounded-xl font-semibold text-white transition ${
-              selectedSeats.length === 0
-                ? "bg-slate-400 cursor-not-allowed"
-                : "bg-blue-950 hover:bg-blue-800"
-            }`}
-          >
-            Continue Booking
-          </button>
-        </aside>
+          return (
+            <button
+              key={seat.id}
+              disabled={seat.is_booked}
+              onClick={() =>
+                toggleSeat(seat.seat_number, seat.is_booked)
+              }
+              className={`
+                h-12 rounded-lg font-semibold border transition
+                ${
+                  seat.is_booked
+                    ? "bg-red-500 text-white cursor-not-allowed"
+                    : isSelected
+                    ? "bg-green-600 text-white"
+                    : "bg-white hover:bg-slate-100"
+                }
+              `}
+            >
+              {seat.seat_number}
+            </button>
+          )
+        })}
       </div>
+
+      {/* 🧠 SELECTED INFO */}
+      <p className="mb-4 text-slate-700">
+        Selected Seats:{" "}
+        <span className="font-bold">
+          {selectedSeats.length > 0
+            ? selectedSeats.join(", ")
+            : "None"}
+        </span>
+      </p>
+
+      {/* ▶ CONTINUE */}
+      <button
+        onClick={handleContinue}
+        className="bg-blue-950 text-white px-6 py-3 rounded-xl"
+      >
+        Continue
+      </button>
     </main>
   )
 }

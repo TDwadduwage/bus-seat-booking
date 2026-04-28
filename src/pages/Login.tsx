@@ -1,28 +1,52 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { supabase } from "../services/supabase"
 
 const Login = () => {
   const navigate = useNavigate()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = () => {
+  // ✅ FIXED LOGIN FUNCTION (INSIDE COMPONENT)
+  const handleLogin = async () => {
+    console.log("LOGIN CLICKED")
+
     if (!email || !password) {
-      alert("Please enter email and password")
+      alert("Enter email & password")
       return
     }
 
-    // 🔥 Simple role logic (for demo)
-    if (email === "admin@gmail.com" && password === "admin123") {
+    setLoading(true)
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    setLoading(false)
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    // ✅ Normalize email
+    const cleanEmail = email.trim().toLowerCase()
+
+    if (cleanEmail === "admin@gmail.com") {
       sessionStorage.setItem("role", "admin")
-      alert("Admin login successful")
-      navigate("/admin")
+      console.log("ROLE SET: admin")
     } else {
       sessionStorage.setItem("role", "user")
-      alert("User login successful")
-      navigate("/")
+      console.log("ROLE SET: user")
     }
+
+    // ✅ small delay (safe navigation)
+    setTimeout(() => {
+      navigate("/")
+    }, 200)
   }
 
   return (
@@ -53,10 +77,16 @@ const Login = () => {
         />
 
         <button
+          type="button"
           onClick={handleLogin}
-          className="w-full bg-blue-950 text-white py-3 rounded-xl font-semibold hover:bg-blue-800"
+          disabled={loading}
+          className={`w-full py-3 rounded-xl font-semibold text-white transition ${
+            loading
+              ? "bg-slate-400 cursor-not-allowed"
+              : "bg-blue-950 hover:bg-blue-800"
+          }`}
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
 
         <p className="text-sm text-slate-500 mt-4 text-center">

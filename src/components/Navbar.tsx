@@ -1,25 +1,32 @@
 import { Link, useLocation } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { supabase } from "../services/supabase"
 
 const Navbar = () => {
   const location = useLocation()
+  const [role, setRole] = useState<string | null>(null)
 
-  // 🔥 Get role from session
-  const role = sessionStorage.getItem("role")
+  useEffect(() => {
+    setRole(sessionStorage.getItem("role"))
+  }, [])
 
-  // ✅ Base links
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    sessionStorage.removeItem("role")
+    window.location.href = "/login"
+  }
+
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Buses", path: "/results" },
     { name: "My Bookings", path: "/my-bookings" },
-    { name: "Signup", path: "/signup" },
   ]
 
-  // 👉 Show Login only if NOT logged in
   if (!role) {
     navLinks.push({ name: "Login", path: "/login" })
+    navLinks.push({ name: "Signup", path: "/signup" })
   }
 
-  // 👉 Show Admin only if admin logged in
   if (role === "admin") {
     navLinks.push({ name: "Admin", path: "/admin" })
   }
@@ -27,14 +34,13 @@ const Navbar = () => {
   return (
     <nav className="bg-blue-950 text-white px-6 py-4 shadow-lg">
       <div className="max-w-6xl mx-auto flex justify-between items-center">
-        
-        {/* Logo */}
-        <Link to="/" className="text-xl font-bold tracking-wide">
+
+        <Link to="/" className="text-xl font-bold">
           🚌 BusBooking LK
         </Link>
 
-        {/* Links */}
-        <div className="hidden md:flex gap-6 text-sm font-medium">
+        <div className="hidden md:flex gap-6">
+
           {navLinks.map((link) => {
             const active = location.pathname === link.path
 
@@ -42,16 +48,22 @@ const Navbar = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`transition ${
-                  active
-                    ? "text-yellow-300"
-                    : "text-white hover:text-yellow-300"
-                }`}
+                className={active ? "text-yellow-300" : "hover:text-yellow-300"}
               >
                 {link.name}
               </Link>
             )
           })}
+
+          {role && (
+            <button
+              onClick={handleLogout}
+              className="text-red-300 hover:text-red-400"
+            >
+              Logout
+            </button>
+          )}
+
         </div>
       </div>
     </nav>

@@ -1,255 +1,138 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { supabase } from "../services/supabase"
+import { getBuses, addBus } from "../services/busService"
 
 type Bus = {
-  id: number
-  busName: string
-  busNumber: string
-  routeNumber: string
-  fromLocation: string
-  toLocation: string
-  busType: string
-  totalSeats: string
-  departureTime: string
-  arrivalTime: string
-  ticketPrice: string
+  id: string
+  bus_name: string
+  from_location: string
+  to_location: string
+  ticket_price: number
 }
 
 const AdminDashboard = () => {
   const navigate = useNavigate()
 
   const [buses, setBuses] = useState<Bus[]>([])
+  const [loading, setLoading] = useState(false)
+
   const [busName, setBusName] = useState("")
-  const [busNumber, setBusNumber] = useState("")
-  const [routeNumber, setRouteNumber] = useState("")
   const [fromLocation, setFromLocation] = useState("")
   const [toLocation, setToLocation] = useState("")
-  const [busType, setBusType] = useState("")
-  const [totalSeats, setTotalSeats] = useState("")
-  const [departureTime, setDepartureTime] = useState("")
-  const [arrivalTime, setArrivalTime] = useState("")
   const [ticketPrice, setTicketPrice] = useState("")
 
+  // ✅ AUTH + LOAD
   useEffect(() => {
     const role = sessionStorage.getItem("role")
 
     if (role !== "admin") {
-      alert("Access denied. Admin only.")
+      alert("Admin only")
       navigate("/login")
       return
     }
 
-    const savedBuses = localStorage.getItem("buses")
+    loadBuses()
+  }, [])
 
-    if (savedBuses) {
-      setBuses(JSON.parse(savedBuses))
+  // ✅ LOAD BUSES
+  const loadBuses = async () => {
+    setLoading(true)
+
+    const { data, error } = await getBuses()
+
+    if (error) {
+      alert(error.message)
+      setLoading(false)
+      return
     }
-  }, [navigate])
 
-const handleAddBus = async () => {
-  const { error } = await supabase.from("buses").insert({
-    bus_name: busName,
-    bus_number: busNumber,
-    route_number: routeNumber,
-    from_location: fromLocation,
-    to_location: toLocation,
-    bus_type: busType,
-    total_seats: Number(totalSeats),
-    departure_time: departureTime,
-    arrival_time: arrivalTime,
-    ticket_price: Number(ticketPrice),
-  })
-
-  if (error) {
-    alert("Error adding bus")
-    console.error(error)
-    return
+    setBuses(data || [])
+    setLoading(false)
   }
 
-  alert("Bus added successfully")
-}
+  // ✅ ADD BUS
+  const handleAddBus = async () => {
+    if (!busName || !fromLocation || !toLocation || !ticketPrice) {
+      alert("Fill all fields")
+      return
+    }
+
+    const { error } = await addBus({
+      bus_name: busName,
+      from_location: fromLocation,
+      to_location: toLocation,
+      ticket_price: Number(ticketPrice),
+    })
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    alert("Bus added")
+
+    setBusName("")
+    setFromLocation("")
+    setToLocation("")
+    setTicketPrice("")
+
+    loadBuses()
+  }
 
   return (
-    <main className="px-6 py-10 max-w-6xl mx-auto">
-      <h2 className="text-3xl font-bold text-slate-900 mb-2">
-        Admin Dashboard
-      </h2>
+    <main className="p-6 max-w-5xl mx-auto">
+      <h2 className="text-2xl font-bold mb-6">Admin Dashboard</h2>
 
-      <p className="text-slate-600 mb-8">
-        Manage buses, routes, schedules, and bookings.
-      </p>
+      {/* FORM */}
+      <div className="bg-white p-6 rounded-xl shadow mb-6">
+        <input
+          placeholder="Bus Name"
+          value={busName}
+          onChange={(e) => setBusName(e.target.value)}
+          className="input"
+        />
+        <input
+          placeholder="From"
+          value={fromLocation}
+          onChange={(e) => setFromLocation(e.target.value)}
+          className="input"
+        />
+        <input
+          placeholder="To"
+          value={toLocation}
+          onChange={(e) => setToLocation(e.target.value)}
+          className="input"
+        />
+        <input
+          placeholder="Price"
+          type="number"
+          value={ticketPrice}
+          onChange={(e) => setTicketPrice(e.target.value)}
+          className="input"
+        />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <p className="text-slate-500">Total Buses</p>
-          <h3 className="text-3xl font-bold text-blue-950">
-            {buses.length}
-          </h3>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <p className="text-slate-500">Routes</p>
-          <h3 className="text-3xl font-bold text-blue-950">
-            {buses.length}
-          </h3>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <p className="text-slate-500">Bookings</p>
-          <h3 className="text-3xl font-bold text-blue-950">0</h3>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <p className="text-slate-500">Revenue</p>
-          <h3 className="text-3xl font-bold text-green-600">LKR 0</h3>
-        </div>
+        <button
+          onClick={handleAddBus}
+          className="bg-blue-900 text-white px-4 py-2 rounded mt-3"
+        >
+          Add Bus
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-xl font-bold text-slate-900 mb-5">
-            Add New Bus & Schedule
-          </h3>
-
-          <input
-            className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4"
-            placeholder="Bus Name"
-            value={busName}
-            onChange={(e) => setBusName(e.target.value)}
-          />
-
-          <input
-            className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4"
-            placeholder="Bus Number"
-            value={busNumber}
-            onChange={(e) => setBusNumber(e.target.value)}
-          />
-
-          <input
-            className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4"
-            placeholder="Route Number (Example: 138)"
-            value={routeNumber}
-            onChange={(e) => setRouteNumber(e.target.value)}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4"
-              placeholder="From Location"
-              value={fromLocation}
-              onChange={(e) => setFromLocation(e.target.value)}
-            />
-
-            <input
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4"
-              placeholder="To Location"
-              value={toLocation}
-              onChange={(e) => setToLocation(e.target.value)}
-            />
+      {/* LIST */}
+      {loading ? (
+        <p>Loading...</p>
+      ) : buses.length === 0 ? (
+        <p>No buses found</p>
+      ) : (
+        buses.map((bus) => (
+          <div key={bus.id} className="border p-4 rounded mb-2">
+            <p className="font-bold">{bus.bus_name}</p>
+            <p>{bus.from_location} → {bus.to_location}</p>
+            <p>LKR {bus.ticket_price}</p>
           </div>
-
-          <select
-            className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4"
-            value={busType}
-            onChange={(e) => setBusType(e.target.value)}
-          >
-            <option value="">Select Bus Type</option>
-            <option value="Normal">Normal</option>
-            <option value="Semi Luxury">Semi Luxury</option>
-            <option value="Luxury">Luxury</option>
-            <option value="Luxury AC">Luxury AC</option>
-          </select>
-
-          <input
-            type="number"
-            min="1"
-            className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4"
-            placeholder="Total Seats"
-            value={totalSeats}
-            onChange={(e) => setTotalSeats(e.target.value)}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="time"
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4"
-              value={departureTime}
-              onChange={(e) => setDepartureTime(e.target.value)}
-            />
-
-            <input
-              type="time"
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4"
-              value={arrivalTime}
-              onChange={(e) => setArrivalTime(e.target.value)}
-            />
-          </div>
-
-          <input
-            type="number"
-            min="1"
-            className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-6"
-            placeholder="Ticket Price (LKR)"
-            value={ticketPrice}
-            onChange={(e) => setTicketPrice(e.target.value)}
-          />
-
-          <button
-            onClick={handleAddBus}
-            className="w-full bg-blue-950 text-white py-3 rounded-xl font-semibold hover:bg-blue-800"
-          >
-            Add Bus Schedule
-          </button>
-        </section>
-
-        <section className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-xl font-bold text-slate-900 mb-5">
-            Added Bus Schedules
-          </h3>
-
-          {buses.length === 0 ? (
-            <p className="text-slate-500">No buses added yet.</p>
-          ) : (
-            <div className="space-y-4">
-              {buses.map((bus) => (
-                <div
-                  key={bus.id}
-                  className="border border-slate-200 rounded-xl p-4"
-                >
-                  <h4 className="font-bold text-slate-900">
-                    {bus.busName}
-                  </h4>
-
-                  <p className="text-sm text-slate-600">
-                    Bus No: {bus.busNumber}
-                  </p>
-
-                  <p className="text-sm text-slate-600">
-                    Route No: {bus.routeNumber}
-                  </p>
-
-                  <p className="text-sm text-slate-600">
-                    {bus.fromLocation} → {bus.toLocation}
-                  </p>
-
-                  <p className="text-sm text-slate-600">
-                    {bus.departureTime} → {bus.arrivalTime}
-                  </p>
-
-                  <p className="text-sm text-slate-600">
-                    {bus.busType} | Seats: {bus.totalSeats}
-                  </p>
-
-                  <p className="text-sm font-semibold text-green-600">
-                    LKR {bus.ticketPrice}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+        ))
+      )}
     </main>
   )
 }
