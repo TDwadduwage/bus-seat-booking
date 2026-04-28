@@ -20,8 +20,7 @@ const SeatSelection = () => {
 
   // ✅ LOAD SEATS FROM DATABASE
   useEffect(() => {
-    if (!bus) return
-
+    if (!bus?.id) return
     loadSeats()
   }, [bus])
 
@@ -44,9 +43,9 @@ const SeatSelection = () => {
     setLoading(false)
   }
 
-  // ✅ SELECT / UNSELECT SEAT
+  // SELECT SEAT
   const toggleSeat = (seatNumber: number, isBooked: boolean) => {
-    if (isBooked) return // block booked seats
+    if (isBooked) return
 
     if (selectedSeats.includes(seatNumber)) {
       setSelectedSeats(selectedSeats.filter((s) => s !== seatNumber))
@@ -55,7 +54,7 @@ const SeatSelection = () => {
     }
   }
 
-  // ✅ GO TO PASSENGER PAGE
+  // CONTINUE
   const handleContinue = () => {
     if (selectedSeats.length === 0) {
       alert("Select at least one seat")
@@ -78,7 +77,6 @@ const SeatSelection = () => {
         Select Seats - {bus?.bus_name}
       </h2>
 
-      {/* 🪑 SEAT GRID */}
       <div className="grid grid-cols-5 gap-4 mb-8">
         {seats.map((seat) => {
           const isSelected = selectedSeats.includes(seat.seat_number)
@@ -87,9 +85,7 @@ const SeatSelection = () => {
             <button
               key={seat.id}
               disabled={seat.is_booked}
-              onClick={() =>
-                toggleSeat(seat.seat_number, seat.is_booked)
-              }
+              onClick={() => toggleSeat(seat.seat_number, seat.is_booked)}
               className={`
                 h-12 rounded-lg font-semibold border transition
                 ${
@@ -107,17 +103,13 @@ const SeatSelection = () => {
         })}
       </div>
 
-      {/* 🧠 SELECTED INFO */}
       <p className="mb-4 text-slate-700">
         Selected Seats:{" "}
         <span className="font-bold">
-          {selectedSeats.length > 0
-            ? selectedSeats.join(", ")
-            : "None"}
+          {selectedSeats.length > 0 ? selectedSeats.join(", ") : "None"}
         </span>
       </p>
 
-      {/* ▶ CONTINUE */}
       <button
         onClick={handleContinue}
         className="bg-blue-950 text-white px-6 py-3 rounded-xl"
