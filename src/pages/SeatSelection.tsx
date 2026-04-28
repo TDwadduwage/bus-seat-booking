@@ -31,6 +31,7 @@ const SeatSelection = () => {
       .from("seats")
       .select("*")
       .eq("bus_id", bus.id)
+      .order("seat_number", { ascending: true })
 
     if (error) {
       console.error(error.message)
@@ -87,15 +88,14 @@ const SeatSelection = () => {
               disabled={seat.is_booked}
               onClick={() => toggleSeat(seat.seat_number, seat.is_booked)}
               className={`
-                h-12 rounded-lg font-semibold border transition
-                ${
-                  seat.is_booked
-                    ? "bg-red-500 text-white cursor-not-allowed"
-                    : isSelected
-                    ? "bg-green-600 text-white"
-                    : "bg-white hover:bg-slate-100"
+          h-12 rounded-xl font-semibold transition shadow
+          ${seat.is_booked
+                  ? "bg-red-500 text-white"
+                  : isSelected
+                    ? "bg-green-600 text-white scale-110"
+                    : "bg-white hover:bg-blue-50"
                 }
-              `}
+        `}
             >
               {seat.seat_number}
             </button>
