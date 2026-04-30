@@ -47,9 +47,14 @@ const Confirmation = () => {
       // 2. LOCK SEATS
       await supabase
         .from("seats")
-        .update({ is_booked: true })
-        .eq("bus_id", bus.id)
+        .update({
+          is_booked: true,
+          is_locked: false,
+          locked_at: null,
+          locked_by: null,
+        })
         .in("seat_number", selectedSeats)
+        .eq("bus_id", bus.id)
 
       alert("Booking Successful 🎉")
       navigate("/my-bookings")
