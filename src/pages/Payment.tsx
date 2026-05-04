@@ -15,38 +15,42 @@ const Payment = () => {
 
   const total = selectedSeats.length * bus.ticket_price
 
-  const handlePayment = async () => {
-    try {
-      setLoading(true)
+ const handlePayment = async () => {
+  setLoading(true)
 
-      const { data, error } = await supabase
-        .from("bookings")
-        .insert([
-          {
-            bus_id: bus.id,
-            seat_numbers: selectedSeats.join(", "),
-            passenger_name: passenger.name,
-          },
-        ])
-        .select()
-        .single()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-      if (error) throw error
-
-      if (!data?.id) {
-        throw new Error("Booking ID missing")
-      }
-
-      // ✅ Navigate using URL param (BEST PRACTICE)
-      navigate(`/confirmation/${data.id}`)
-
-    } catch (err: any) {
-      console.error(err)
-      alert(err.message)
-    } finally {
-      setLoading(false)
-    }
+  if (!user) {
+    alert("Please login first")
+    setLoading(false)
+    return
   }
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .insert([
+      {
+        bus_id: bus.id,
+        seat_numbers: selectedSeats.join(", "),
+        passenger_name: passenger.name,
+        user_id: user.id, // ✅ CRITICAL FIX
+      },
+    ])
+    .select()
+    .single()
+
+  setLoading(false)
+
+  if (error) {
+    console.error(error)
+    alert(error.message)
+    return
+  }
+
+  navigate(`/confirmation/${data.id}`)
+}
 
   return (
     <main className="max-w-xl mx-auto p-6">
