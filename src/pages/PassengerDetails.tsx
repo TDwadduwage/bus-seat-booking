@@ -5,8 +5,7 @@ const PassengerDetails = () => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const bus = location.state?.bus
-  const selectedSeats = location.state?.selectedSeats || []
+ const { bus, selectedSeats} = location.state || {}
 
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
@@ -23,13 +22,19 @@ const PassengerDetails = () => {
       return
     }
 
-    navigate("/confirmation", {
-      state: {
-        bus,
-        selectedSeats,
-        passenger: { name, phone, email, nic },
-      },
-    })
+   navigate("/payment", {
+  state: {
+    bus,
+    selectedSeats,
+    passenger: {
+      name,
+      phone,
+      email,
+      nic,
+    },
+    
+  },
+})
   }
 
   return (

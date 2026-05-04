@@ -1,45 +1,57 @@
-import { Link, useLocation } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { supabase } from "../services/supabase"
 
 const Navbar = () => {
   const location = useLocation()
+  const navigate = useNavigate()
+
   const [role, setRole] = useState<string | null>(null)
 
+  // ✅ keep role in sync
   useEffect(() => {
-    setRole(sessionStorage.getItem("role"))
+    const updateRole = () => {
+      setRole(sessionStorage.getItem("role"))
+    }
+
+    updateRole()
+
+    // listen for changes (login/logout in same tab)
+    window.addEventListener("storage", updateRole)
+
+    return () => {
+      window.removeEventListener("storage", updateRole)
+    }
   }, [])
 
+  // ✅ LOGOUT FIX
   const handleLogout = async () => {
     await supabase.auth.signOut()
+
     sessionStorage.removeItem("role")
-    window.location.href = "/login"
+    setRole(null) // 🔥 immediate UI update
+
+    navigate("/login")
   }
 
+  // ✅ BASE LINKS
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Buses", path: "/results" },
     { name: "My Bookings", path: "/my-bookings" },
   ]
 
-  if (!role) {
-    navLinks.push({ name: "Login", path: "/login" })
-    navLinks.push({ name: "Signup", path: "/signup" })
-  }
-
-  if (role === "admin") {
-    navLinks.push({ name: "Admin", path: "/admin" })
-  }
-
   return (
     <nav className="bg-blue-950 text-white px-6 py-4 shadow-lg">
       <div className="max-w-6xl mx-auto flex justify-between items-center">
 
+        {/* LOGO */}
         <Link to="/" className="text-xl font-bold">
           🚌 BusBooking LK
         </Link>
 
-        <div className="hidden md:flex gap-6">
+        {/* NAV LINKS */}
+        <div className="hidden md:flex gap-6 items-center">
 
           {navLinks.map((link) => {
             const active = location.pathname === link.path
@@ -48,17 +60,43 @@ const Navbar = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={active ? "text-yellow-300" : "hover:text-yellow-300"}
+                className={`transition ${
+                  active ? "text-yellow-300" : "hover:text-yellow-300"
+                }`}
               >
                 {link.name}
               </Link>
             )
           })}
 
-          {role && (
+          {/* ADMIN */}
+          {role === "admin" && (
+            <Link
+              to="/admin"
+              className={`transition ${
+                location.pathname === "/admin"
+                  ? "text-yellow-300"
+                  : "hover:text-yellow-300"
+              }`}
+            >
+              Admin
+            </Link>
+          )}
+
+          {/* AUTH BUTTONS */}
+          {!role ? (
+            <>
+              <Link to="/login" className="hover:text-yellow-300">
+                Login
+              </Link>
+              <Link to="/signup" className="hover:text-yellow-300">
+                Signup
+              </Link>
+            </>
+          ) : (
             <button
               onClick={handleLogout}
-              className="text-red-300 hover:text-red-400"
+              className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg transition"
             >
               Logout
             </button>
