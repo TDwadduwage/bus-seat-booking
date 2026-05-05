@@ -145,7 +145,7 @@ const SeatSelection = () => {
         prev.filter((s) => s !== seat.seat_number)
       )
     } else {
-      await supabase
+      const { data, error } = await supabase
         .from("seats")
         .update({
           is_locked: true,
@@ -154,6 +154,12 @@ const SeatSelection = () => {
         })
         .eq("id", seat.id)
         .eq("is_locked", false)
+        .select()
+
+      if (error || !data || data.length === 0) {
+        alert("Seat was just taken by another user!")
+        return
+      }
 
       setSelectedSeats((prev) => [...prev, seat.seat_number])
       setTimeLeft(LOCK_DURATION)

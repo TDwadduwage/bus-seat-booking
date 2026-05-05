@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import { Html5QrcodeScanner } from "html5-qrcode"
 import { supabase } from "../services/supabase"
+import { loadBookingsFromCache, queueOfflineCheckin } from "../services/offlineSync"
 
 const ConductorScanner = () => {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null)
@@ -30,7 +31,33 @@ const ConductorScanner = () => {
           return
         }
 
-        // ✅ fetch booking
+        // ✅ 1. Check local cache first
+        const cachedBookings = loadBookingsFromCache()
+        const cachedTicket = cachedBookings.find((b: any) => b.id === bookingId)
+
+        if (cachedTicket) {
+          if (cachedTicket.is_checked) {
+            alert("⚠️ Already Used Ticket")
+            return
+          }
+          
+          queueOfflineCheckin(bookingId)
+          
+          if (navigator.onLine) {
+            // Try to sync immediately without awaiting
+            supabase.from("bookings").update({ is_checked: true, checked_at: new Date().toISOString() }).eq("id", bookingId).then()
+          }
+          
+          alert(`✅ Checked-in: ${cachedTicket.passenger_name}`)
+          return
+        }
+
+        // ✅ 2. If not in cache, fallback to Supabase (if online)
+        if (!navigator.onLine) {
+          alert("❌ Offline: Ticket not found in local cache")
+          return
+        }
+
         const { data, error } = await supabase
           .from("bookings")
           .select("*")
@@ -57,8 +84,8 @@ const ConductorScanner = () => {
           .eq("id", bookingId)
 
         if (updateError) {
-          alert("❌ Failed to update check-in")
-          return
+          // If network fails during update, queue it
+          queueOfflineCheckin(bookingId)
         }
 
         alert(`✅ Checked-in: ${data.passenger_name}`)
