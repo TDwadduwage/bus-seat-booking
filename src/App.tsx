@@ -5,20 +5,24 @@ import Home from "./pages/Home"
 import Results from "./pages/Results"
 import SeatSelection from "./pages/SeatSelection"
 import PassengerDetails from "./pages/PassengerDetails"
+import Payment from "./pages/Payment"
 import Confirmation from "./pages/Confirmation"
 import MyBookings from "./pages/MyBookings"
 import Login from "./pages/Login"
 import Signup from "./pages/Signup"
 import AdminDashboard from "./pages/AdminDashboard"
-import Payment from "./pages/Payment"
+import ConductorDashboard from "./pages/ConductorDashboard"
+import ConductorScanner from "./pages/ConductorScanner"
+import SeatMapDashboard from "./pages/SeatMapDashboard"
 
-// ✅ Hide navbar on auth pages
-const Layout = ({ children }: { children: React.ReactNode }) => {
+type LayoutProps = {
+  children: React.ReactNode
+}
+
+const Layout = ({ children }: LayoutProps) => {
   const location = useLocation()
 
-  const hideNavbar =
-    location.pathname === "/login" ||
-    location.pathname === "/signup"
+  const hideNavbar = ["/login", "/signup"].includes(location.pathname)
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -33,14 +37,10 @@ function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-
           {/* PUBLIC */}
           <Route path="/" element={<Home />} />
           <Route path="/results" element={<Results />} />
-
-          {/* 🔥 IMPORTANT: keep this consistent everywhere */}
           <Route path="/seats" element={<SeatSelection />} />
-
           <Route path="/passenger" element={<PassengerDetails />} />
           <Route path="/payment" element={<Payment />} />
           <Route path="/confirmation/:id" element={<Confirmation />} />
@@ -55,16 +55,22 @@ function App() {
           {/* ADMIN */}
           <Route path="/admin" element={<AdminDashboard />} />
 
-          {/* ✅ FALLBACK (prevents blank page) */}
+          {/* CONDUCTOR */}
+          <Route path="/conductor" element={<ConductorDashboard />} />
+          <Route path="/scanner" element={<ConductorScanner />} />
+          <Route path="/seat-map/:busId" element={<SeatMapDashboard />} />
+
+          {/* FALLBACK */}
           <Route
             path="*"
             element={
               <div className="p-10 text-center">
-                <h2 className="text-2xl font-bold">404 - Page Not Found</h2>
+                <h2 className="text-2xl font-bold">
+                  404 - Page Not Found
+                </h2>
               </div>
             }
           />
-
         </Routes>
       </Layout>
     </BrowserRouter>

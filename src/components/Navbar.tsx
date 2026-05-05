@@ -40,6 +40,13 @@ const Navbar = () => {
     { name: "Buses", path: "/results" },
     { name: "My Bookings", path: "/my-bookings" },
   ]
+  if (role === "admin") {
+  navLinks.push({ name: "Conductor", path: "/conductor" })
+  navLinks.push({ name: "Scanner", path: "/scanner" })
+}
+if (role === "admin") {
+  navLinks.push({ name: "Seat Map", path: "/seat-map" })
+}
 
   return (
     <nav className="bg-blue-950 text-white px-6 py-4 shadow-lg">
