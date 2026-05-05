@@ -1,131 +1,89 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef } from "react"
+import { Html5QrcodeScanner } from "html5-qrcode"
 import { supabase } from "../services/supabase"
 
-type Seat = {
-    id: string
-    seat_number: number
-    is_booked: boolean
-}
-
 type Booking = {
-    seat_numbers: string
-    is_checked: boolean
+  id: string
+  passenger_name: string
+  is_checked: boolean
 }
 
-const SeatMapDashboard = () => {
-    const [seats, setSeats] = useState<Seat[]>([])
-    const [bookings, setBookings] = useState<Booking[]>([])
+const ConductorScanner = () => {
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null)
 
-    const busId = "YOUR_BUS_ID_HERE" // 🔥 replace or pass dynamically
+  useEffect(() => {
+    if (scannerRef.current) return
 
-    // ✅ LOAD DATA
-    useEffect(() => {
-        loadData()
-
-        // 🔥 REALTIME: seats
-        const seatChannel = supabase
-            .channel("seat-live")
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "seats",
-                    filter: `bus_id=eq.${busId}`,
-                },
-                () => loadData()
-            )
-            .subscribe()
-
-        // 🔥 REALTIME: bookings
-        const bookingChannel = supabase
-            .channel("booking-live")
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "bookings",
-                },
-                () => loadData()
-            )
-            .subscribe()
-
-        return () => {
-            supabase.removeChannel(seatChannel)
-            supabase.removeChannel(bookingChannel)
-        }
-    }, [])
-
-    const loadData = async () => {
-        // seats
-        const { data: seatData } = await supabase
-            .from("seats")
-            .select("*")
-            .eq("bus_id", busId)
-            .order("seat_number", { ascending: true })
-
-        // bookings
-        const { data: bookingData } = await supabase
-            .from("bookings")
-            .select("seat_numbers, is_checked")
-
-        setSeats(seatData || [])
-        setBookings(bookingData || [])
-    }
-
-    // ✅ CHECK IF SEAT IS BOARDED
-    const isBoarded = (seatNumber: number) => {
-        return bookings.some(
-            (b) =>
-                b.is_checked &&
-                b.seat_numbers.split(", ").includes(String(seatNumber))
-        )
-    }
-
-    return (
-        <main className="p-6 max-w-5xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6">
-                🪑 Live Seat Map
-            </h1>
-
-            <div className="grid grid-cols-5 gap-4">
-                {seats.map((seat) => {
-                    const boarded = isBoarded(seat.seat_number)
-
-                    let style = "bg-white"
-
-                    if (boarded) {
-                        style = "bg-green-500 text-white"
-                    } else if (seat.is_booked) {
-                        style = "bg-red-500 text-white"
-                    }
-
-                    return (
-                        <div
-                            key={seat.id}
-                            className={`h-12 flex items-center justify-center rounded-xl font-semibold shadow transition-all duration-300 hover:scale-110 hover:shadow-xl ${style}`}
-                        >
-                            {seat.seat_number}
-                        </div>
-                    )
-                })}
-            </div>
-
-            {/* LEGEND */}
-            <div className="mt-6 flex gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 bg-white border"></span> Available
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 bg-red-500"></span> Booked
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 bg-green-500"></span> Boarded
-                </div>
-            </div>
-        </main>
+    const scanner = new Html5QrcodeScanner(
+      "qr-reader",
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      false
     )
+
+    scannerRef.current = scanner
+
+    const onScanSuccess = async (decodedText: string) => {
+      try {
+        const bookingId = decodedText.replace("BOOKING:", "").trim()
+
+        if (!bookingId) {
+          alert("❌ Invalid QR")
+          return
+        }
+
+        // ✅ STEP 1: FETCH booking
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("id, passenger_name, is_checked")
+          .eq("id", bookingId)
+          .single()
+
+        if (error || !data) {
+          alert("❌ Invalid Ticket")
+          return
+        }
+
+        const booking = data as Booking
+
+        if (booking.is_checked) {
+          alert("⚠️ Already Used Ticket")
+          return
+        }
+
+        // ✅ STEP 2: UPDATE
+        const { error: updateError } = await supabase
+          .from("bookings")
+          .update({
+            is_checked: true,
+            checked_at: new Date().toISOString(),
+          })
+          .eq("id", bookingId)
+
+        if (updateError) {
+          alert("❌ Update failed")
+          return
+        }
+
+        alert(`✅ Checked-in: ${booking.passenger_name}`)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    scanner.render(onScanSuccess, () => {})
+
+    return () => {
+      scannerRef.current?.clear().catch(() => {})
+      scannerRef.current = null
+    }
+  }, [])
+
+  return (
+    <main className="p-6 flex flex-col items-center">
+      <h1 className="text-2xl font-bold mb-4">📷 Scanner</h1>
+      <div id="qr-reader" className="w-full max-w-md" />
+    </main>
+  )
 }
 
-export default SeatMapDashboard
+export default ConductorScanner

@@ -16,27 +16,35 @@ const ConductorDashboard = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadBookings()
+  loadBookings()
 
-    const channel = supabase
-      .channel("live-bookings")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookings",
-        },
-        () => {
-          loadBookings()
-        }
-      )
-      .subscribe()
+  const channel = supabase
+    .channel("live-bookings")
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "bookings",
+      },
+      (payload) => {
+        const updated = payload.new
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.id === updated.id
+              ? { ...b, is_checked: updated.is_checked }
+              : b
+          )
+        )
+      }
+    )
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
+}, [])
 
   const loadBookings = async () => {
     setLoading(true)
